@@ -16,11 +16,12 @@ async function run(): Promise<void> {
     const response = await octokit.rest.issues.listComments({
       owner: github.context.repo.owner,
       repo: github.context.repo.repo,
-      issue_number: issueNumber
+      issue_number: issueNumber,
+      per_page: 100
     })
 
+    core.debug(`Comment count: ${response.data.length}`)
     const comments = response.data.filter(comment => {
-      core.debug(`comment: ${JSON.stringify(comment)}`)
       return comment.body?.includes(bodyContains)
     })
     core.debug(
