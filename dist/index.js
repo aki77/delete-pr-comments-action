@@ -55,11 +55,12 @@ function run() {
             const response = yield octokit.rest.issues.listComments({
                 owner: github.context.repo.owner,
                 repo: github.context.repo.repo,
-                issue_number: issueNumber
+                issue_number: issueNumber,
+                per_page: 100
             });
+            core.debug(`Comment count: ${response.data.length}`);
             const comments = response.data.filter(comment => {
                 var _a;
-                core.debug(`comment: ${JSON.stringify(comment)}`);
                 return (_a = comment.body) === null || _a === void 0 ? void 0 : _a.includes(bodyContains);
             });
             core.debug(`Found ${comments.length} comments with body containing ${bodyContains}`);

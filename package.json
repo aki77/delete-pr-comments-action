@@ -1,6 +1,6 @@
 {
   "name": "delete-comments-action",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "description": "Delete comments from issue/pr by any conditions",
   "main": "lib/main.js",
