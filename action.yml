@@ -1,11 +1,13 @@
-name: 'Your name here'
-description: 'Provide a description here'
-author: 'Your name or organization here'
+name: "Delete comments"
+description: "Delete comments from issue/pr by any conditions"
+author: "aki77"
 inputs:
-  milliseconds: # change this
+  token:
     required: true
-    description: 'input description here'
-    default: 'default value if applicable'
+    description: "Github token"
+  bodyContains:
+    required: true
+    description: "String contained in the comment to be deleted"
 runs:
-  using: 'node16'
-  main: 'dist/index.js'
+  using: "node16"
+  main: "dist/index.js"
