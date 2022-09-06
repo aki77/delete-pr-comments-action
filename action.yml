@@ -1,6 +1,9 @@
 name: "Delete PR review comments"
 description: "Delete PR review comments by any conditions"
 author: "aki77"
+branding:
+  icon: trash-2
+  color: red
 inputs:
   token:
     required: true
