@@ -59,6 +59,7 @@ function run() {
                 per_page: 100
             });
             core.debug(`Comment count: ${response.data.length}`);
+            core.debug(`Comments: ${JSON.stringify(response.data)}`);
             const comments = response.data.filter(comment => {
                 var _a;
                 return (_a = comment.body) === null || _a === void 0 ? void 0 : _a.includes(bodyContains);

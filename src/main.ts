@@ -21,6 +21,8 @@ async function run(): Promise<void> {
     })
 
     core.debug(`Comment count: ${response.data.length}`)
+    core.debug(`Comments: ${JSON.stringify(response.data)}`)
+
     const comments = response.data.filter(comment => {
       return comment.body?.includes(bodyContains)
     })
