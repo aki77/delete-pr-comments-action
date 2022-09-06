@@ -3,8 +3,8 @@ import * as github from '@actions/github'
 
 async function run(): Promise<void> {
   try {
-    const issueNumber = github.context.issue.number
-    if (!issueNumber) {
+    const pullNumber = github.context.issue.number
+    if (!pullNumber) {
       throw new Error('Could not get pull request number from context, exiting')
     }
 
@@ -13,11 +13,13 @@ async function run(): Promise<void> {
     core.debug(`bodyContains: ${JSON.stringify(bodyContains)}`)
 
     const octokit = github.getOctokit(token)
-    const response = await octokit.rest.issues.listComments({
+    const response = await octokit.rest.pulls.listReviewComments({
       owner: github.context.repo.owner,
       repo: github.context.repo.repo,
-      issue_number: issueNumber,
-      per_page: 100
+      pull_number: pullNumber,
+      per_page: 100,
+      sort: 'created',
+      direction: 'desc'
     })
 
     core.debug(`Comment count: ${response.data.length}`)
@@ -31,7 +33,7 @@ async function run(): Promise<void> {
     )
 
     for (const comment of comments) {
-      await octokit.rest.issues.deleteComment({
+      await octokit.rest.pulls.deleteReviewComment({
         owner: github.context.repo.owner,
         repo: github.context.repo.repo,
         comment_id: comment.id

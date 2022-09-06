@@ -44,19 +44,21 @@ const github = __importStar(__nccwpck_require__(1340));
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            const issueNumber = github.context.issue.number;
-            if (!issueNumber) {
+            const pullNumber = github.context.issue.number;
+            if (!pullNumber) {
                 throw new Error('Could not get pull request number from context, exiting');
             }
             const token = core.getInput('token', { required: true });
             const bodyContains = core.getInput('bodyContains', { required: true });
             core.debug(`bodyContains: ${JSON.stringify(bodyContains)}`);
             const octokit = github.getOctokit(token);
-            const response = yield octokit.rest.issues.listComments({
+            const response = yield octokit.rest.pulls.listReviewComments({
                 owner: github.context.repo.owner,
                 repo: github.context.repo.repo,
-                issue_number: issueNumber,
-                per_page: 100
+                pull_number: pullNumber,
+                per_page: 100,
+                sort: 'created',
+                direction: 'desc'
             });
             core.debug(`Comment count: ${response.data.length}`);
             core.debug(`Comments: ${JSON.stringify(response.data)}`);
@@ -66,7 +68,7 @@ function run() {
             });
             core.debug(`Found ${comments.length} comments with body containing ${bodyContains}`);
             for (const comment of comments) {
-                yield octokit.rest.issues.deleteComment({
+                yield octokit.rest.pulls.deleteReviewComment({
                     owner: github.context.repo.owner,
                     repo: github.context.repo.repo,
                     comment_id: comment.id

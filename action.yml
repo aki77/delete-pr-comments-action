@@ -1,5 +1,5 @@
 name: "Delete comments"
-description: "Delete comments from issue/pr by any conditions"
+description: "Delete PR review comments by any conditions"
 author: "aki77"
 inputs:
   token:

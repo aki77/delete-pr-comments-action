@@ -1,6 +1,6 @@
 # Delete comments
 
-Delete comments from issue/pr by any conditions.
+Delete PR review comments by any conditions.
 
 ### Inputs
 
@@ -17,7 +17,7 @@ on:
 jobs:
   build:
     steps:
-      - uses: aki77/delete-comments-action@v1
+      - uses: aki77/delete-pr-comments-action@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           bodyContains: "[eslint]"
