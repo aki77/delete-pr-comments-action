@@ -1,6 +1,6 @@
 {
   "name": "delete-comments-action",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Delete comments from issue/pr by any conditions",
   "main": "lib/main.js",
@@ -22,7 +22,7 @@
     "node",
     "setup"
   ],
-  "author": "",
+  "author": "aki77",
   "license": "MIT",
   "dependencies": {
     "@actions/core": "^1.6.0",
