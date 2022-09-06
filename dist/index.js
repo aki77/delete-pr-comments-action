@@ -50,6 +50,7 @@ function run() {
             }
             const token = core.getInput('token', { required: true });
             const bodyContains = core.getInput('bodyContains', { required: true });
+            core.debug(`bodyContains: ${JSON.stringify(bodyContains)}`);
             const octokit = github.getOctokit(token);
             const response = yield octokit.rest.issues.listComments({
                 owner: github.context.repo.owner,
@@ -58,8 +59,10 @@ function run() {
             });
             const comments = response.data.filter(comment => {
                 var _a;
+                core.debug(`comment: ${JSON.stringify(comment)}`);
                 return (_a = comment.body) === null || _a === void 0 ? void 0 : _a.includes(bodyContains);
             });
+            core.debug(`Found ${comments.length} comments with body containing ${bodyContains}`);
             for (const comment of comments) {
                 yield octokit.rest.issues.deleteComment({
                     owner: github.context.repo.owner,

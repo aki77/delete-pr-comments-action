@@ -10,6 +10,7 @@ async function run(): Promise<void> {
 
     const token = core.getInput('token', {required: true})
     const bodyContains = core.getInput('bodyContains', {required: true})
+    core.debug(`bodyContains: ${JSON.stringify(bodyContains)}`)
 
     const octokit = github.getOctokit(token)
     const response = await octokit.rest.issues.listComments({
@@ -19,8 +20,12 @@ async function run(): Promise<void> {
     })
 
     const comments = response.data.filter(comment => {
+      core.debug(`comment: ${JSON.stringify(comment)}`)
       return comment.body?.includes(bodyContains)
     })
+    core.debug(
+      `Found ${comments.length} comments with body containing ${bodyContains}`
+    )
 
     for (const comment of comments) {
       await octokit.rest.issues.deleteComment({
