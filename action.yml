@@ -1,4 +1,4 @@
-name: "Delete comments"
+name: "Delete PR review comments"
 description: "Delete PR review comments by any conditions"
 author: "aki77"
 inputs:

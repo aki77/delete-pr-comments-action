@@ -1,4 +1,4 @@
-# Delete comments
+# Delete PR review comments
 
 Delete PR review comments by any conditions.
 
