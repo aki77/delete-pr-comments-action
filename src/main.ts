@@ -5,7 +5,8 @@ async function run(): Promise<void> {
   try {
     const pullNumber = github.context.issue.number
     if (!pullNumber) {
-      throw new Error('Could not get pull request number from context, exiting')
+      core.warning('Cannot find the PR id.')
+      return
     }
 
     const token = core.getInput('token', {required: true})
