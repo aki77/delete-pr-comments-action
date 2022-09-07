@@ -5,7 +5,8 @@ Delete PR review comments by any conditions.
 ### Inputs
 
 - `token` - The GITHUB_TOKEN secret.
-- `bodyContains` - String contained in the comment to be deleted.
+- `bodyContains` - String contained in the comment to be deleted. (default: ``)
+- `noReply`: Delete only comments with no replies. (default: `false`)
 
 ## Example
 

@@ -10,7 +10,8 @@ async function run(): Promise<void> {
     }
 
     const token = core.getInput('token', {required: true})
-    const bodyContains = core.getInput('bodyContains', {required: true})
+    const bodyContains = core.getInput('bodyContains')
+    const noReply = core.getInput('noReply')
     core.debug(`bodyContains: ${JSON.stringify(bodyContains)}`)
 
     const octokit = github.getOctokit(token)
@@ -26,12 +27,23 @@ async function run(): Promise<void> {
     core.debug(`Comment count: ${response.data.length}`)
     core.debug(`Comments: ${JSON.stringify(response.data)}`)
 
+    const commentIdsWithReply = response.data
+      .map(({in_reply_to_id}) => in_reply_to_id)
+      .filter((id): id is number => !!id)
+    const commentIdsWithReplySet = new Set(commentIdsWithReply)
+
     const comments = response.data.filter(comment => {
-      return comment.body?.includes(bodyContains)
+      if (bodyContains.length > 0 && !comment.body?.includes(bodyContains)) {
+        return false
+      }
+
+      if (noReply === 'true' && commentIdsWithReplySet.has(comment.id)) {
+        return false
+      }
+
+      return true
     })
-    core.debug(
-      `Found ${comments.length} comments with body containing ${bodyContains}`
-    )
+    core.debug(`Found ${comments.length} comments with match conditions.`)
 
     for (const comment of comments) {
       await octokit.rest.pulls.deleteReviewComment({

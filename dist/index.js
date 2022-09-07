@@ -50,7 +50,8 @@ function run() {
                 return;
             }
             const token = core.getInput('token', { required: true });
-            const bodyContains = core.getInput('bodyContains', { required: true });
+            const bodyContains = core.getInput('bodyContains');
+            const noReply = core.getInput('noReply');
             core.debug(`bodyContains: ${JSON.stringify(bodyContains)}`);
             const octokit = github.getOctokit(token);
             const response = yield octokit.rest.pulls.listReviewComments({
@@ -63,11 +64,21 @@ function run() {
             });
             core.debug(`Comment count: ${response.data.length}`);
             core.debug(`Comments: ${JSON.stringify(response.data)}`);
+            const commentIdsWithReply = response.data
+                .map(({ in_reply_to_id }) => in_reply_to_id)
+                .filter((id) => !!id);
+            const commentIdsWithReplySet = new Set(commentIdsWithReply);
             const comments = response.data.filter(comment => {
                 var _a;
-                return (_a = comment.body) === null || _a === void 0 ? void 0 : _a.includes(bodyContains);
+                if (bodyContains.length > 0 && !((_a = comment.body) === null || _a === void 0 ? void 0 : _a.includes(bodyContains))) {
+                    return false;
+                }
+                if (noReply === 'true' && commentIdsWithReplySet.has(comment.id)) {
+                    return false;
+                }
+                return true;
             });
-            core.debug(`Found ${comments.length} comments with body containing ${bodyContains}`);
+            core.debug(`Found ${comments.length} comments with match conditions.`);
             for (const comment of comments) {
                 yield octokit.rest.pulls.deleteReviewComment({
                     owner: github.context.repo.owner,
