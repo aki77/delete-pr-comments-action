@@ -9,8 +9,12 @@ inputs:
     required: true
     description: "Github token"
   bodyContains:
-    required: true
-    description: "String contained in the comment to be deleted"
+    required: false
+    description: "Delete only comments containing strings."
+  noReply:
+    required: false
+    description: "Delete only comments with no replies."
+    default: "false"
 runs:
   using: "node16"
   main: "dist/index.js"
