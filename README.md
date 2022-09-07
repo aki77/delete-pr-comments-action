@@ -22,5 +22,6 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           bodyContains: "[eslint]"
+          noReply: 'true'
       - uses: reviewdog/action-eslint@v1
 ```
