@@ -1,6 +1,17 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
 
+const parseBodyContains = (bodyContains: string): readonly string[] => {
+  if (bodyContains.length === 0) {
+    return []
+  }
+
+  return bodyContains
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0)
+}
+
 async function run(): Promise<void> {
   try {
     const pullNumber = github.context.issue.number
@@ -10,9 +21,9 @@ async function run(): Promise<void> {
     }
 
     const token = core.getInput('token', {required: true})
-    const bodyContains = core.getInput('bodyContains')
+    const searchStrings = parseBodyContains(core.getInput('bodyContains'))
     const noReply = core.getInput('noReply')
-    core.debug(`bodyContains: ${JSON.stringify(bodyContains)}`)
+    core.debug(`bodyContains: ${JSON.stringify(searchStrings)}`)
 
     const octokit = github.getOctokit(token)
     const response = await octokit.rest.pulls.listReviewComments({
@@ -33,7 +44,11 @@ async function run(): Promise<void> {
     const commentIdsWithReplySet = new Set(commentIdsWithReply)
 
     const comments = response.data.filter(comment => {
-      if (bodyContains.length > 0 && !comment.body?.includes(bodyContains)) {
+      if (
+        searchStrings.every(
+          (searchString: string) => !comment.body.includes(searchString)
+        )
+      ) {
         return false
       }
 
