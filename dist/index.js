@@ -41,6 +41,15 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(7733));
 const github = __importStar(__nccwpck_require__(3695));
+const parseBodyContains = (bodyContains) => {
+    if (bodyContains.length === 0) {
+        return [];
+    }
+    return bodyContains
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
+};
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -50,9 +59,9 @@ function run() {
                 return;
             }
             const token = core.getInput('token', { required: true });
-            const bodyContains = core.getInput('bodyContains');
+            const searchStrings = parseBodyContains(core.getInput('bodyContains'));
             const noReply = core.getInput('noReply');
-            core.debug(`bodyContains: ${JSON.stringify(bodyContains)}`);
+            core.debug(`bodyContains: ${JSON.stringify(searchStrings)}`);
             const octokit = github.getOctokit(token);
             const response = yield octokit.rest.pulls.listReviewComments({
                 owner: github.context.repo.owner,
@@ -69,8 +78,7 @@ function run() {
                 .filter((id) => !!id);
             const commentIdsWithReplySet = new Set(commentIdsWithReply);
             const comments = response.data.filter(comment => {
-                var _a;
-                if (bodyContains.length > 0 && !((_a = comment.body) === null || _a === void 0 ? void 0 : _a.includes(bodyContains))) {
+                if (searchStrings.every((searchString) => !comment.body.includes(searchString))) {
                     return false;
                 }
                 if (noReply === 'true' && commentIdsWithReplySet.has(comment.id)) {
@@ -4284,7 +4292,7 @@ function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'defau
 var endpoint = __nccwpck_require__(9960);
 var universalUserAgent = __nccwpck_require__(4930);
 var isPlainObject = __nccwpck_require__(366);
-var nodeFetch = _interopDefault(__nccwpck_require__(1822));
+var nodeFetch = _interopDefault(__nccwpck_require__(3642));
 var requestError = __nccwpck_require__(9913);
 
 const VERSION = "5.6.3";
@@ -4711,7 +4719,7 @@ exports.isPlainObject = isPlainObject;
 
 /***/ }),
 
-/***/ 1822:
+/***/ 3642:
 /***/ ((module, exports, __nccwpck_require__) => {
 
 "use strict";
