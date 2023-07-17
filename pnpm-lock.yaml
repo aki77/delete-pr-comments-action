@@ -1,5 +1,9 @@
 lockfileVersion: '6.0'
 
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
 dependencies:
   '@actions/core':
     specifier: ^1.10.0
@@ -25,8 +29,8 @@ devDependencies:
     specifier: ^8.44.0
     version: 8.44.0
   eslint-plugin-github:
-    specifier: ^4.8.0
-    version: 4.8.0(eslint@8.44.0)(typescript@5.1.6)
+    specifier: ^4.9.0
+    version: 4.9.0(eslint@8.44.0)(typescript@5.1.6)
   eslint-plugin-jest:
     specifier: ^27.2.2
     version: 27.2.2(eslint@8.44.0)(jest@29.6.1)(typescript@5.1.6)
@@ -1817,8 +1821,8 @@ packages:
       lodash.upperfirst: 4.3.1
     dev: true
 
-  /eslint-plugin-github@4.8.0(eslint@8.44.0)(typescript@5.1.6):
-    resolution: {integrity: sha512-1qu1qcyac4FfZmT9KNPr5250DwWzwp6uy6xAqHD2boE4OquUpeTni05yPn1b6y6vUYm/q8+npTdyYiRSqvg+BQ==}
+  /eslint-plugin-github@4.9.0(eslint@8.44.0)(typescript@5.1.6):
+    resolution: {integrity: sha512-c4jnJXJzHy8lzdYjOXlXcY7jX4b2ciGh+ugZM5b6vs6q2+m+6BrNl20u5WxloJvH6Q8CbZ0+Lnh7lDJxUd3WkQ==}
     hasBin: true
     peerDependencies:
       eslint: ^8.0.1
@@ -4017,7 +4021,3 @@ packages:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
     dev: true
-
-settings:
-  autoInstallPeers: true
-  excludeLinksFromLockfile: false
