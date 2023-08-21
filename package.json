@@ -29,7 +29,7 @@
     "@actions/github": "^5.1.1"
   },
   "devDependencies": {
-    "@jest/globals": "^29.6.2",
+    "@jest/globals": "^29.6.3",
     "@types/node": "^16.18.40",
     "@typescript-eslint/parser": "^6.4.1",
     "@vercel/ncc": "^0.36.1",
