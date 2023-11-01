@@ -14,9 +14,14 @@ const parseBodyContains = (bodyContains: string): readonly string[] => {
 
 async function run(): Promise<void> {
   try {
-    const pullNumber = github.context.issue.number
+    const pullNumberFromInputs = Number(core.getInput('pullRequestNumber'))
+    const pullNumberFromContext = github.context.issue.number
+    const pullNumber = pullNumberFromInputs || pullNumberFromContext
+
     if (!pullNumber) {
-      core.warning('Cannot find the PR id.')
+      core.warning(
+        `Cannot find the PR id. Pull request number from inputs: ${pullNumberFromInputs} and from context: ${pullNumberFromContext}`
+      )
       return
     }
 
