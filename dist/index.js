@@ -53,9 +53,12 @@ const parseBodyContains = (bodyContains) => {
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            const pullNumber = github.context.issue.number;
+            const pullNumberFromInputs = core.getInput('pullRequestNumber');
+            const pullNumber = pullNumberFromInputs
+                ? Number.parseInt(pullNumberFromInputs)
+                : github.context.issue.number;
             if (!pullNumber) {
-                core.warning('Cannot find the PR id.');
+                core.warning(`Cannot find the PR id. Pull request number from inputs: ${pullNumberFromInputs} and from context: ${github.context.issue.number}`);
                 return;
             }
             const token = core.getInput('token', { required: true });
