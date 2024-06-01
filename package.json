@@ -1,6 +1,6 @@
 {
   "name": "delete-pr-comments-action",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "private": true,
   "description": "Delete PR review comments by any conditions.",
   "main": "lib/main.js",
