@@ -17,7 +17,7 @@ inputs:
     default: "false"
   pullRequestNumber:
     required: false
-    describption: "Delete comments on specified PR"
+    description: "Delete comments on specified PR"
 runs:
   using: "node20"
   main: "dist/index.js"
