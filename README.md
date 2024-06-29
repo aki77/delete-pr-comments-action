@@ -2,11 +2,15 @@
 
 Delete PR review comments by any conditions.
 
-### Inputs
+## Inputs
 
-- `token` - The GITHUB_TOKEN secret.
-- `noReply`: Delete only comments with no replies. (default: `false`)
-- `bodyContains` - String contained in the comment to be deleted. (default: ``)
+See [action.yml](action.yml)
+
+| Name | Description | Default | Required |
+| - | - | - | - |
+| `token` | GITHUB_TOKEN | `${{ github.token }}` | no |
+| `noReply` | Delete only comments with no replies | false | no |
+| `bodyContains` | String contained in the comment to be deleted | `` | no |
 
   You can specify multiple strings by putting each string on its own line:
 
@@ -28,7 +32,6 @@ jobs:
     steps:
       - uses: aki77/delete-pr-comments-action@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
           bodyContains: |-
             [eslint]
             [reviewdog]

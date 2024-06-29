@@ -6,8 +6,9 @@ branding:
   color: red
 inputs:
   token:
-    required: true
+    required: false
     description: "Github token"
+    default: "${{ github.token }}"
   bodyContains:
     required: false
     description: "Delete only comments containing strings."
