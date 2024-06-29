@@ -6,8 +6,9 @@ branding:
   color: red
 inputs:
   token:
-    required: true
+    required: false
     description: "Github token"
+    default: "${{ github.token }}"
   bodyContains:
     required: false
     description: "Delete only comments containing strings."
@@ -17,7 +18,7 @@ inputs:
     default: "false"
   pullRequestNumber:
     required: false
-    describption: "Delete comments on specified PR"
+    description: "Delete comments on specified PR"
 runs:
   using: "node20"
   main: "dist/index.js"

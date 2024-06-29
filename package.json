@@ -1,6 +1,6 @@
 {
   "name": "delete-pr-comments-action",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "private": true,
   "description": "Delete PR review comments by any conditions.",
   "main": "lib/main.js",
@@ -30,17 +30,17 @@
   },
   "devDependencies": {
     "@jest/globals": "^29.7.0",
-    "@types/node": "^20.13.0",
-    "@typescript-eslint/parser": "^7.11.0",
+    "@types/node": "^20.14.9",
+    "@typescript-eslint/parser": "^7.14.1",
     "@vercel/ncc": "^0.38.1",
-    "eslint": "^8.56.0",
-    "eslint-plugin-github": "^4.10.2",
-    "eslint-plugin-jest": "^28.5.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-github": "^5.0.1",
+    "eslint-plugin-jest": "^28.6.0",
     "jest": "^29.7.0",
     "js-yaml": "^4.1.0",
-    "prettier": "3.3.0",
-    "ts-jest": "^29.1.4",
-    "typescript": "^5.4.5"
+    "prettier": "3.3.2",
+    "ts-jest": "^29.1.5",
+    "typescript": "^5.5.2"
   },
-  "packageManager": "pnpm@9.1.0+sha512.67f5879916a9293e5cf059c23853d571beaf4f753c707f40cb22bed5fb1578c6aad3b6c4107ccb3ba0b35be003eb621a16471ac836c87beb53f9d54bb4612724"
+  "packageManager": "pnpm@9.4.0"
 }
