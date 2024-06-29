@@ -30,6 +30,7 @@ async function run(): Promise<void> {
     const searchStrings = parseBodyContains(core.getInput('bodyContains'))
     const noReply = core.getInput('noReply')
     core.debug(`bodyContains: ${JSON.stringify(searchStrings)}`)
+    core.debug(`pull_number: ${pullNumber}`)
 
     const octokit = github.getOctokit(token)
     const response = await octokit.rest.pulls.listReviewComments({
