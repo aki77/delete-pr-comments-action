@@ -98,8 +98,7 @@ const filterComments = (comments, searchStrings, targetUsernames, noReply, comme
         }
         // noReply filter only applies to review comments (line-specific comments)
         if (noReply === 'true' &&
-            !('state' in comment) && // Not an overall review comment
-            !('pull_request_review_id' in comment) && // Not an issue comment
+            'in_reply_to_id' in comment &&
             commentIdsWithReplySet.has(comment.id)) {
             return false;
         }
@@ -147,14 +146,10 @@ function run() {
                     sort: 'created',
                     direction: 'desc'
                 });
-                issueComments = issueCommentsResponse.data
-                    .filter((comment) => comment.pull_request_review_id !== null &&
-                    comment.pull_request_review_id !== undefined)
-                    .map(comment => ({
+                issueComments = issueCommentsResponse.data.map(comment => ({
                     id: comment.id,
                     body: comment.body || '',
-                    user: comment.user,
-                    pull_request_review_id: comment.pull_request_review_id
+                    user: comment.user
                 }));
             }
             // Get overall review comments
@@ -202,19 +197,19 @@ function run() {
                     core.info(`Hiding review ${comment.id}: "${comment.body.substring(0, 50)}..."`);
                     yield minimizeComment(octokit, comment.node_id, 'OUTDATED');
                 }
-                else if ('pull_request_review_id' in comment) {
-                    // This is an issue comment
-                    core.info(`Deleting issue comment ${comment.id}: "${comment.body.substring(0, 50)}..."`);
-                    yield octokit.rest.issues.deleteComment({
+                else if ('in_reply_to_id' in comment) {
+                    // This is a review comment (line-specific)
+                    core.info(`Deleting review comment ${comment.id}: "${comment.body.substring(0, 50)}..."`);
+                    yield octokit.rest.pulls.deleteReviewComment({
                         owner: github.context.repo.owner,
                         repo: github.context.repo.repo,
                         comment_id: comment.id
                     });
                 }
                 else {
-                    // This is a review comment (line-specific)
-                    core.info(`Deleting review comment ${comment.id}: "${comment.body.substring(0, 50)}..."`);
-                    yield octokit.rest.pulls.deleteReviewComment({
+                    // This is an issue comment (消去法)
+                    core.info(`Deleting issue comment ${comment.id}: "${comment.body.substring(0, 50)}..."`);
+                    yield octokit.rest.issues.deleteComment({
                         owner: github.context.repo.owner,
                         repo: github.context.repo.repo,
                         comment_id: comment.id

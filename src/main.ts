@@ -32,7 +32,6 @@ type IssueComment = {
   user: {
     login: string
   } | null
-  pull_request_review_id?: number | null
 }
 
 type ReviewOverallComment = {
@@ -99,8 +98,7 @@ const filterComments = (
     // noReply filter only applies to review comments (line-specific comments)
     if (
       noReply === 'true' &&
-      !('state' in comment) && // Not an overall review comment
-      !('pull_request_review_id' in comment) && // Not an issue comment
+      'in_reply_to_id' in comment &&
       commentIdsWithReplySet.has(comment.id)
     ) {
       return false
@@ -157,24 +155,11 @@ async function run(): Promise<void> {
         sort: 'created',
         direction: 'desc'
       })
-      // Filter to only include review comments (those with pull_request_review_id)
-      // Use type assertion since GitHub API doesn't include pull_request_review_id in its type definitions
-      type APIComment = (typeof issueCommentsResponse.data)[0] & {
-        pull_request_review_id?: number | null
-      }
-
-      issueComments = (issueCommentsResponse.data as APIComment[])
-        .filter(
-          (comment): comment is APIComment & {pull_request_review_id: number} =>
-            comment.pull_request_review_id !== null &&
-            comment.pull_request_review_id !== undefined
-        )
-        .map(comment => ({
-          id: comment.id,
-          body: comment.body || '',
-          user: comment.user,
-          pull_request_review_id: comment.pull_request_review_id
-        }))
+      issueComments = issueCommentsResponse.data.map(comment => ({
+        id: comment.id,
+        body: comment.body || '',
+        user: comment.user
+      }))
     }
 
     // Get overall review comments
@@ -237,18 +222,18 @@ async function run(): Promise<void> {
         // This is an overall review comment → Always hide
         core.info(`Hiding review ${comment.id}: "${comment.body.substring(0, 50)}..."`)
         await minimizeComment(octokit, comment.node_id, 'OUTDATED')
-      } else if ('pull_request_review_id' in comment) {
-        // This is an issue comment
-        core.info(`Deleting issue comment ${comment.id}: "${comment.body.substring(0, 50)}..."`)
-        await octokit.rest.issues.deleteComment({
+      } else if ('in_reply_to_id' in comment) {
+        // This is a review comment (line-specific)
+        core.info(`Deleting review comment ${comment.id}: "${comment.body.substring(0, 50)}..."`)
+        await octokit.rest.pulls.deleteReviewComment({
           owner: github.context.repo.owner,
           repo: github.context.repo.repo,
           comment_id: comment.id
         })
       } else {
-        // This is a review comment (line-specific)
-        core.info(`Deleting review comment ${comment.id}: "${comment.body.substring(0, 50)}..."`)
-        await octokit.rest.pulls.deleteReviewComment({
+        // This is an issue comment (消去法)
+        core.info(`Deleting issue comment ${comment.id}: "${comment.body.substring(0, 50)}..."`)
+        await octokit.rest.issues.deleteComment({
           owner: github.context.repo.owner,
           repo: github.context.repo.repo,
           comment_id: comment.id
