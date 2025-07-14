@@ -9,11 +9,12 @@ See [action.yml](action.yml)
 | Name | Description | Default | Required |
 | - | - | - | - |
 | `token` | GITHUB_TOKEN | `${{ github.token }}` | no |
+| `bodyContains` | Delete only comments containing strings | `` | no |
 | `noReply` | Delete only comments with no replies | false | no |
-| `bodyContains` | String contained in the comment to be deleted | `` | no |
-| `usernames` | Delete only comments posted by specified usernames | `` | no |
 | `pullRequestNumber` | Delete comments on specified PR | `` | no |
-| `includeReviewComments` | Include PR review comments (overall review comments) in deletion targets | false | no |
+| `usernames` | Delete only comments posted by specified usernames (newline separated) | `` | no |
+| `includeIssueComments` | Include PR issue comments in deletion targets | false | no |
+| `includeOverallReviewComments` | Include overall review comments in deletion targets (will be hidden) | false | no |
 
   You can specify multiple strings by putting each string on its own line:
 
@@ -86,7 +87,7 @@ jobs:
           noReply: 'true'
 ```
 
-### Delete both line-specific and overall review comments
+### Delete both issue comments and overall review comments
 
 ```yaml
 name: Delete review comments
@@ -98,6 +99,7 @@ jobs:
     steps:
       - uses: aki77/delete-pr-comments-action@v2
         with:
-          includeReviewComments: 'true'
+          includeIssueComments: 'true'
+          includeOverallReviewComments: 'true'
           usernames: claude[bot]
 ```
