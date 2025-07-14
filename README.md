@@ -44,7 +44,7 @@ on:
 jobs:
   build:
     steps:
-      - uses: aki77/delete-pr-comments-action@v2
+      - uses: aki77/delete-pr-comments-action@v3
         with:
           bodyContains: |-
             [eslint]
@@ -63,7 +63,7 @@ on:
 jobs:
   cleanup:
     steps:
-      - uses: aki77/delete-pr-comments-action@v2
+      - uses: aki77/delete-pr-comments-action@v3
         with:
           usernames: |-
             dependabot[bot]
@@ -80,7 +80,7 @@ on:
 jobs:
   cleanup:
     steps:
-      - uses: aki77/delete-pr-comments-action@v2
+      - uses: aki77/delete-pr-comments-action@v3
         with:
           bodyContains: 'outdated'
           usernames: 'github-actions[bot]'
@@ -97,7 +97,7 @@ on:
 jobs:
   cleanup:
     steps:
-      - uses: aki77/delete-pr-comments-action@v2
+      - uses: aki77/delete-pr-comments-action@v3
         with:
           includeIssueComments: 'true'
           includeOverallReviewComments: 'true'
