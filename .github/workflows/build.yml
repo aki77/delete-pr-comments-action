@@ -18,7 +18,6 @@ jobs:
       - uses: ./
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          bodyContains: |-
-            [test1]
-            [test2]
+          usernames: |-
+            aki77
           noReply: 'true'
