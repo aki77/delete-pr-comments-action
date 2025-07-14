@@ -81,8 +81,10 @@ const filterComments = (comments, searchStrings, targetUsernames, noReply, comme
             (!comment.user || !targetUsernames.includes(comment.user.login))) {
             return false;
         }
-        // noReply filter only applies to review comments (not issue comments)
-        if (noReply === 'true' && 'in_reply_to_id' in comment && commentIdsWithReplySet.has(comment.id)) {
+        // noReply filter only applies to review comments (not issue comments or overall review comments)
+        if (noReply === 'true' &&
+            'in_reply_to_id' in comment &&
+            commentIdsWithReplySet.has(comment.id)) {
             return false;
         }
         return true;
@@ -104,6 +106,8 @@ function run() {
             const targetUsernames = parseUsernames(core.getInput('usernames'));
             const noReply = core.getInput('noReply');
             const includeReviewComments = core.getInput('includeReviewComments');
+            const includeOverallReviewComments = core.getInput('includeOverallReviewComments');
+            const dismissMessage = core.getInput('dismissMessage') || 'Dismissed by delete-pr-comments-action';
             core.debug(`bodyContains: ${JSON.stringify(searchStrings)}`);
             core.debug(`usernames: ${JSON.stringify(targetUsernames)}`);
             core.debug(`pull_number: ${pullNumber}`);
@@ -138,15 +142,37 @@ function run() {
                     pull_request_review_id: comment.pull_request_review_id
                 }));
             }
+            // Get overall review comments
+            let overallReviewComments = [];
+            if (includeOverallReviewComments === 'true') {
+                const reviewsResponse = yield octokit.rest.pulls.listReviews({
+                    owner: github.context.repo.owner,
+                    repo: github.context.repo.repo,
+                    pull_number: pullNumber,
+                    per_page: 100
+                });
+                overallReviewComments = reviewsResponse.data
+                    .filter(review => review.body && review.body.trim().length > 0)
+                    .map(review => ({
+                    id: review.id,
+                    body: review.body || '',
+                    user: review.user ? {
+                        login: review.user.login
+                    } : null,
+                    state: review.state,
+                    submitted_at: review.submitted_at || null
+                }));
+            }
             const allReviewComments = reviewCommentsResponse.data.map(comment => ({
                 id: comment.id,
                 body: comment.body,
                 user: comment.user,
                 in_reply_to_id: comment.in_reply_to_id
             }));
-            const allComments = [...allReviewComments, ...issueComments];
+            const allComments = [...allReviewComments, ...issueComments, ...overallReviewComments];
             core.debug(`Review comment count: ${allReviewComments.length}`);
             core.debug(`Issue comment count: ${issueComments.length}`);
+            core.debug(`Overall review comment count: ${overallReviewComments.length}`);
             core.debug(`Total comment count: ${allComments.length}`);
             const commentIdsWithReply = allReviewComments
                 .map(({ in_reply_to_id }) => in_reply_to_id)
@@ -157,14 +183,40 @@ function run() {
             for (const comment of filteredComments) {
                 if ('in_reply_to_id' in comment) {
                     // This is a review comment (line-specific)
+                    core.info(`Deleting review comment ${comment.id}: "${comment.body.substring(0, 50)}..."`);
                     yield octokit.rest.pulls.deleteReviewComment({
                         owner: github.context.repo.owner,
                         repo: github.context.repo.repo,
                         comment_id: comment.id
                     });
                 }
+                else if ('state' in comment) {
+                    // This is an overall review comment
+                    if (comment.state === 'PENDING') {
+                        // Pending review → Delete completely
+                        core.info(`Deleting pending review ${comment.id}: "${comment.body.substring(0, 50)}..."`);
+                        yield octokit.rest.pulls.deletePendingReview({
+                            owner: github.context.repo.owner,
+                            repo: github.context.repo.repo,
+                            pull_number: pullNumber,
+                            review_id: comment.id
+                        });
+                    }
+                    else {
+                        // Submitted review → Dismiss (invalidate)
+                        core.info(`Dismissing submitted review ${comment.id} (${comment.state}): "${comment.body.substring(0, 50)}..."`);
+                        yield octokit.rest.pulls.dismissReview({
+                            owner: github.context.repo.owner,
+                            repo: github.context.repo.repo,
+                            pull_number: pullNumber,
+                            review_id: comment.id,
+                            message: dismissMessage
+                        });
+                    }
+                }
                 else {
-                    // This is an issue comment (overall review comment)
+                    // This is an issue comment
+                    core.info(`Deleting issue comment ${comment.id}: "${comment.body.substring(0, 50)}..."`);
                     yield octokit.rest.issues.deleteComment({
                         owner: github.context.repo.owner,
                         repo: github.context.repo.repo,
