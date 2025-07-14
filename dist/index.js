@@ -51,6 +51,21 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(9999));
 const github = __importStar(__nccwpck_require__(5380));
+const minimizeComment = (octokit_1, nodeId_1, ...args_1) => __awaiter(void 0, [octokit_1, nodeId_1, ...args_1], void 0, function* (octokit, nodeId, reason = 'OUTDATED') {
+    yield octokit.graphql(`
+    mutation minimizeComment($id: ID!, $classifier: ReportedContentClassifiers!) {
+      minimizeComment(input: { subjectId: $id, classifier: $classifier }) {
+        minimizedComment {
+          isMinimized
+          minimizedReason
+        }
+      }
+    }
+  `, {
+        id: nodeId,
+        classifier: reason
+    });
+});
 const parseBodyContains = (bodyContains) => {
     if (bodyContains.length === 0) {
         return [];
@@ -108,7 +123,6 @@ function run() {
             const noReply = core.getInput('noReply');
             const includeIssueComments = core.getInput('includeIssueComments');
             const includeOverallReviewComments = core.getInput('includeOverallReviewComments');
-            const dismissMessage = core.getInput('dismissMessage') || 'Dismissed by delete-pr-comments-action';
             core.debug(`bodyContains: ${JSON.stringify(searchStrings)}`);
             core.debug(`usernames: ${JSON.stringify(targetUsernames)}`);
             core.debug(`pull_number: ${pullNumber}`);
@@ -161,7 +175,8 @@ function run() {
                         login: review.user.login
                     } : null,
                     state: review.state,
-                    submitted_at: review.submitted_at || null
+                    submitted_at: review.submitted_at || null,
+                    node_id: review.node_id
                 }));
             }
             const allReviewComments = reviewCommentsResponse.data.map(comment => ({
@@ -183,28 +198,9 @@ function run() {
             core.debug(`Found ${filteredComments.length} comments with match conditions.`);
             for (const comment of filteredComments) {
                 if ('state' in comment) {
-                    // This is an overall review comment
-                    if (comment.state === 'PENDING') {
-                        // Pending review → Delete completely
-                        core.info(`Deleting pending review ${comment.id}: "${comment.body.substring(0, 50)}..."`);
-                        yield octokit.rest.pulls.deletePendingReview({
-                            owner: github.context.repo.owner,
-                            repo: github.context.repo.repo,
-                            pull_number: pullNumber,
-                            review_id: comment.id
-                        });
-                    }
-                    else {
-                        // Submitted review → Dismiss (invalidate)
-                        core.info(`Dismissing submitted review ${comment.id} (${comment.state}): "${comment.body.substring(0, 50)}..."`);
-                        yield octokit.rest.pulls.dismissReview({
-                            owner: github.context.repo.owner,
-                            repo: github.context.repo.repo,
-                            pull_number: pullNumber,
-                            review_id: comment.id,
-                            message: dismissMessage
-                        });
-                    }
+                    // This is an overall review comment → Always hide
+                    core.info(`Hiding review ${comment.id}: "${comment.body.substring(0, 50)}..."`);
+                    yield minimizeComment(octokit, comment.node_id, 'OUTDATED');
                 }
                 else if ('pull_request_review_id' in comment) {
                     // This is an issue comment

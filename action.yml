@@ -28,12 +28,8 @@ inputs:
     default: "false"
   includeOverallReviewComments:
     required: false
-    description: "Include overall review comments in deletion targets (submitted reviews will be dismissed)"
+    description: "Include overall review comments in deletion targets (will be hidden)"
     default: "false"
-  dismissMessage:
-    required: false
-    description: "Message to include when dismissing submitted reviews"
-    default: "Dismissed by delete-pr-comments-action"
 runs:
   using: "node20"
   main: "dist/index.js"

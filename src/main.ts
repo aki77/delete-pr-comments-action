@@ -1,6 +1,22 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
 
+const minimizeComment = async (octokit: ReturnType<typeof github.getOctokit>, nodeId: string, reason: string = 'OUTDATED'): Promise<void> => {
+  await octokit.graphql(`
+    mutation minimizeComment($id: ID!, $classifier: ReportedContentClassifiers!) {
+      minimizeComment(input: { subjectId: $id, classifier: $classifier }) {
+        minimizedComment {
+          isMinimized
+          minimizedReason
+        }
+      }
+    }
+  `, {
+    id: nodeId,
+    classifier: reason
+  })
+}
+
 type ReviewComment = {
   id: number
   body: string
@@ -27,6 +43,7 @@ type ReviewOverallComment = {
   } | null
   state: 'PENDING' | 'COMMENTED' | 'APPROVED' | 'CHANGES_REQUESTED'
   submitted_at: string | null
+  node_id: string
 }
 
 type Comment = ReviewComment | IssueComment | ReviewOverallComment
@@ -113,7 +130,6 @@ async function run(): Promise<void> {
     const noReply = core.getInput('noReply')
     const includeIssueComments = core.getInput('includeIssueComments')
     const includeOverallReviewComments = core.getInput('includeOverallReviewComments')
-    const dismissMessage = core.getInput('dismissMessage') || 'Dismissed by delete-pr-comments-action'
     core.debug(`bodyContains: ${JSON.stringify(searchStrings)}`)
     core.debug(`usernames: ${JSON.stringify(targetUsernames)}`)
     core.debug(`pull_number: ${pullNumber}`)
@@ -180,7 +196,8 @@ async function run(): Promise<void> {
             login: review.user.login
           } : null,
           state: review.state as 'PENDING' | 'COMMENTED' | 'APPROVED' | 'CHANGES_REQUESTED',
-          submitted_at: review.submitted_at || null
+          submitted_at: review.submitted_at || null,
+          node_id: review.node_id
         }))
     }
 
@@ -217,27 +234,9 @@ async function run(): Promise<void> {
 
     for (const comment of filteredComments) {
       if ('state' in comment) {
-        // This is an overall review comment
-        if (comment.state === 'PENDING') {
-          // Pending review → Delete completely
-          core.info(`Deleting pending review ${comment.id}: "${comment.body.substring(0, 50)}..."`)
-          await octokit.rest.pulls.deletePendingReview({
-            owner: github.context.repo.owner,
-            repo: github.context.repo.repo,
-            pull_number: pullNumber,
-            review_id: comment.id
-          })
-        } else {
-          // Submitted review → Dismiss (invalidate)
-          core.info(`Dismissing submitted review ${comment.id} (${comment.state}): "${comment.body.substring(0, 50)}..."`)
-          await octokit.rest.pulls.dismissReview({
-            owner: github.context.repo.owner,
-            repo: github.context.repo.repo,
-            pull_number: pullNumber,
-            review_id: comment.id,
-            message: dismissMessage
-          })
-        }
+        // This is an overall review comment → Always hide
+        core.info(`Hiding review ${comment.id}: "${comment.body.substring(0, 50)}..."`)
+        await minimizeComment(octokit, comment.node_id, 'OUTDATED')
       } else if ('pull_request_review_id' in comment) {
         // This is an issue comment
         core.info(`Deleting issue comment ${comment.id}: "${comment.body.substring(0, 50)}..."`)
