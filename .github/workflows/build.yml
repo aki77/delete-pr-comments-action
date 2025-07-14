@@ -21,3 +21,5 @@ jobs:
           usernames: |-
             aki77
           noReply: 'true'
+          bodyContains: 'test2'
+          includeReviewComments: 'true'
