@@ -22,6 +22,10 @@ inputs:
   usernames:
     required: false
     description: "Delete only comments posted by specified usernames (newline separated)"
+  includeReviewComments:
+    required: false
+    description: "Include PR review comments (overall review comments) in deletion targets"
+    default: "false"
 runs:
   using: "node20"
   main: "dist/index.js"

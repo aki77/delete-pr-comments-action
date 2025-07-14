@@ -69,6 +69,25 @@ const parseUsernames = (usernames) => {
         .map(line => line.trim())
         .filter(line => line.length > 0);
 };
+const filterComments = (comments, searchStrings, targetUsernames, noReply, commentIdsWithReplySet) => {
+    return comments.filter(comment => {
+        // Filter by search strings
+        if (searchStrings.length > 0 &&
+            searchStrings.every((searchString) => !comment.body.includes(searchString))) {
+            return false;
+        }
+        // Filter by usernames
+        if (targetUsernames.length > 0 &&
+            (!comment.user || !targetUsernames.includes(comment.user.login))) {
+            return false;
+        }
+        // noReply filter only applies to review comments (not issue comments)
+        if (noReply === 'true' && 'in_reply_to_id' in comment && commentIdsWithReplySet.has(comment.id)) {
+            return false;
+        }
+        return true;
+    });
+};
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -84,11 +103,13 @@ function run() {
             const searchStrings = parseBodyContains(core.getInput('bodyContains'));
             const targetUsernames = parseUsernames(core.getInput('usernames'));
             const noReply = core.getInput('noReply');
+            const includeReviewComments = core.getInput('includeReviewComments');
             core.debug(`bodyContains: ${JSON.stringify(searchStrings)}`);
             core.debug(`usernames: ${JSON.stringify(targetUsernames)}`);
             core.debug(`pull_number: ${pullNumber}`);
             const octokit = github.getOctokit(token);
-            const response = yield octokit.rest.pulls.listReviewComments({
+            // Get PR review comments (line-specific comments)
+            const reviewCommentsResponse = yield octokit.rest.pulls.listReviewComments({
                 owner: github.context.repo.owner,
                 repo: github.context.repo.repo,
                 pull_number: pullNumber,
@@ -96,33 +117,60 @@ function run() {
                 sort: 'created',
                 direction: 'desc'
             });
-            core.debug(`Comment count: ${response.data.length}`);
-            core.debug(`Comments: ${JSON.stringify(response.data)}`);
-            const commentIdsWithReply = response.data
+            // Get PR issue comments (including overall review comments)
+            let issueComments = [];
+            if (includeReviewComments === 'true') {
+                const issueCommentsResponse = yield octokit.rest.issues.listComments({
+                    owner: github.context.repo.owner,
+                    repo: github.context.repo.repo,
+                    issue_number: pullNumber,
+                    per_page: 100,
+                    sort: 'created',
+                    direction: 'desc'
+                });
+                issueComments = issueCommentsResponse.data
+                    .filter((comment) => comment.pull_request_review_id !== null &&
+                    comment.pull_request_review_id !== undefined)
+                    .map(comment => ({
+                    id: comment.id,
+                    body: comment.body || '',
+                    user: comment.user,
+                    pull_request_review_id: comment.pull_request_review_id
+                }));
+            }
+            const allReviewComments = reviewCommentsResponse.data.map(comment => ({
+                id: comment.id,
+                body: comment.body,
+                user: comment.user,
+                in_reply_to_id: comment.in_reply_to_id
+            }));
+            const allComments = [...allReviewComments, ...issueComments];
+            core.debug(`Review comment count: ${allReviewComments.length}`);
+            core.debug(`Issue comment count: ${issueComments.length}`);
+            core.debug(`Total comment count: ${allComments.length}`);
+            const commentIdsWithReply = allReviewComments
                 .map(({ in_reply_to_id }) => in_reply_to_id)
                 .filter((id) => !!id);
             const commentIdsWithReplySet = new Set(commentIdsWithReply);
-            const comments = response.data.filter(comment => {
-                if (searchStrings.length > 0 &&
-                    searchStrings.every((searchString) => !comment.body.includes(searchString))) {
-                    return false;
+            const filteredComments = filterComments(allComments, searchStrings, targetUsernames, noReply, commentIdsWithReplySet);
+            core.debug(`Found ${filteredComments.length} comments with match conditions.`);
+            for (const comment of filteredComments) {
+                if ('in_reply_to_id' in comment) {
+                    // This is a review comment (line-specific)
+                    yield octokit.rest.pulls.deleteReviewComment({
+                        owner: github.context.repo.owner,
+                        repo: github.context.repo.repo,
+                        comment_id: comment.id
+                    });
                 }
-                if (targetUsernames.length > 0 &&
-                    !targetUsernames.includes(comment.user.login)) {
-                    return false;
+                else {
+                    // This is an issue comment (overall review comment)
+                    yield octokit.rest.issues.deleteComment({
+                        owner: github.context.repo.owner,
+                        repo: github.context.repo.repo,
+                        comment_id: comment.id
+                    });
                 }
-                if (noReply === 'true' && commentIdsWithReplySet.has(comment.id)) {
-                    return false;
-                }
-                return true;
-            });
-            core.debug(`Found ${comments.length} comments with match conditions.`);
-            for (const comment of comments) {
-                yield octokit.rest.pulls.deleteReviewComment({
-                    owner: github.context.repo.owner,
-                    repo: github.context.repo.repo,
-                    comment_id: comment.id
-                });
             }
         }
         catch (error) {
