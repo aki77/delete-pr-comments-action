@@ -103,10 +103,12 @@ function run() {
                 .filter((id) => !!id);
             const commentIdsWithReplySet = new Set(commentIdsWithReply);
             const comments = response.data.filter(comment => {
-                if (searchStrings.every((searchString) => !comment.body.includes(searchString))) {
+                if (searchStrings.length > 0 &&
+                    searchStrings.every((searchString) => !comment.body.includes(searchString))) {
                     return false;
                 }
-                if (targetUsernames.length > 0 && !targetUsernames.includes(comment.user.login)) {
+                if (targetUsernames.length > 0 &&
+                    !targetUsernames.includes(comment.user.login)) {
                     return false;
                 }
                 if (noReply === 'true' && commentIdsWithReplySet.has(comment.id)) {

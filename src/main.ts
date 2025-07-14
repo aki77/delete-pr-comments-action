@@ -65,6 +65,7 @@ async function run(): Promise<void> {
 
     const comments = response.data.filter(comment => {
       if (
+        searchStrings.length > 0 &&
         searchStrings.every(
           (searchString: string) => !comment.body.includes(searchString)
         )
@@ -72,7 +73,10 @@ async function run(): Promise<void> {
         return false
       }
 
-      if (targetUsernames.length > 0 && !targetUsernames.includes(comment.user.login)) {
+      if (
+        targetUsernames.length > 0 &&
+        !targetUsernames.includes(comment.user.login)
+      ) {
         return false
       }
 
