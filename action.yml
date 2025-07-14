@@ -22,9 +22,9 @@ inputs:
   usernames:
     required: false
     description: "Delete only comments posted by specified usernames (newline separated)"
-  includeReviewComments:
+  includeIssueComments:
     required: false
-    description: "Include PR review comments (overall review comments) in deletion targets"
+    description: "Include PR issue comments in deletion targets"
     default: "false"
   includeOverallReviewComments:
     required: false

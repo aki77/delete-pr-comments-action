@@ -79,10 +79,11 @@ const filterComments = (
       return false
     }
 
-    // noReply filter only applies to review comments (not issue comments or overall review comments)
+    // noReply filter only applies to review comments (line-specific comments)
     if (
       noReply === 'true' &&
-      'in_reply_to_id' in comment &&
+      !('state' in comment) && // Not an overall review comment
+      !('pull_request_review_id' in comment) && // Not an issue comment
       commentIdsWithReplySet.has(comment.id)
     ) {
       return false
@@ -110,7 +111,7 @@ async function run(): Promise<void> {
     const searchStrings = parseBodyContains(core.getInput('bodyContains'))
     const targetUsernames = parseUsernames(core.getInput('usernames'))
     const noReply = core.getInput('noReply')
-    const includeReviewComments = core.getInput('includeReviewComments')
+    const includeIssueComments = core.getInput('includeIssueComments')
     const includeOverallReviewComments = core.getInput('includeOverallReviewComments')
     const dismissMessage = core.getInput('dismissMessage') || 'Dismissed by delete-pr-comments-action'
     core.debug(`bodyContains: ${JSON.stringify(searchStrings)}`)
@@ -131,7 +132,7 @@ async function run(): Promise<void> {
 
     // Get PR issue comments (including overall review comments)
     let issueComments: IssueComment[] = []
-    if (includeReviewComments === 'true') {
+    if (includeIssueComments === 'true') {
       const issueCommentsResponse = await octokit.rest.issues.listComments({
         owner: github.context.repo.owner,
         repo: github.context.repo.repo,
@@ -215,15 +216,7 @@ async function run(): Promise<void> {
     )
 
     for (const comment of filteredComments) {
-      if ('in_reply_to_id' in comment) {
-        // This is a review comment (line-specific)
-        core.info(`Deleting review comment ${comment.id}: "${comment.body.substring(0, 50)}..."`)
-        await octokit.rest.pulls.deleteReviewComment({
-          owner: github.context.repo.owner,
-          repo: github.context.repo.repo,
-          comment_id: comment.id
-        })
-      } else if ('state' in comment) {
+      if ('state' in comment) {
         // This is an overall review comment
         if (comment.state === 'PENDING') {
           // Pending review → Delete completely
@@ -245,10 +238,18 @@ async function run(): Promise<void> {
             message: dismissMessage
           })
         }
-      } else {
+      } else if ('pull_request_review_id' in comment) {
         // This is an issue comment
         core.info(`Deleting issue comment ${comment.id}: "${comment.body.substring(0, 50)}..."`)
         await octokit.rest.issues.deleteComment({
+          owner: github.context.repo.owner,
+          repo: github.context.repo.repo,
+          comment_id: comment.id
+        })
+      } else {
+        // This is a review comment (line-specific)
+        core.info(`Deleting review comment ${comment.id}: "${comment.body.substring(0, 50)}..."`)
+        await octokit.rest.pulls.deleteReviewComment({
           owner: github.context.repo.owner,
           repo: github.context.repo.repo,
           comment_id: comment.id
