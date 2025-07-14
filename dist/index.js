@@ -149,7 +149,8 @@ function run() {
                 issueComments = issueCommentsResponse.data.map(comment => ({
                     id: comment.id,
                     body: comment.body || '',
-                    user: comment.user
+                    user: comment.user,
+                    node_id: comment.node_id
                 }));
             }
             // Get overall review comments
@@ -166,9 +167,11 @@ function run() {
                     .map(review => ({
                     id: review.id,
                     body: review.body || '',
-                    user: review.user ? {
-                        login: review.user.login
-                    } : null,
+                    user: review.user
+                        ? {
+                            login: review.user.login
+                        }
+                        : null,
                     state: review.state,
                     submitted_at: review.submitted_at || null,
                     node_id: review.node_id
@@ -178,9 +181,14 @@ function run() {
                 id: comment.id,
                 body: comment.body,
                 user: comment.user,
-                in_reply_to_id: comment.in_reply_to_id
+                in_reply_to_id: comment.in_reply_to_id,
+                node_id: comment.node_id
             }));
-            const allComments = [...allReviewComments, ...issueComments, ...overallReviewComments];
+            const allComments = [
+                ...allReviewComments,
+                ...issueComments,
+                ...overallReviewComments
+            ];
             core.debug(`Review comment count: ${allReviewComments.length}`);
             core.debug(`Issue comment count: ${issueComments.length}`);
             core.debug(`Overall review comment count: ${overallReviewComments.length}`);
@@ -200,20 +208,48 @@ function run() {
                 else if ('in_reply_to_id' in comment) {
                     // This is a review comment (line-specific)
                     core.info(`Deleting review comment ${comment.id}: "${comment.body.substring(0, 50)}..."`);
-                    yield octokit.rest.pulls.deleteReviewComment({
-                        owner: github.context.repo.owner,
-                        repo: github.context.repo.repo,
-                        comment_id: comment.id
-                    });
+                    try {
+                        yield octokit.rest.pulls.deleteReviewComment({
+                            owner: github.context.repo.owner,
+                            repo: github.context.repo.repo,
+                            comment_id: comment.id
+                        });
+                    }
+                    catch (error) {
+                        // Check if it's a permission error
+                        if (error instanceof Error &&
+                            (error.message.includes('Resource not accessible by integration') ||
+                                error.message.includes('403'))) {
+                            core.info(`Permission denied for deleting comment ${comment.id}, falling back to minimizing`);
+                            yield minimizeComment(octokit, comment.node_id, 'OUTDATED');
+                        }
+                        else {
+                            throw error;
+                        }
+                    }
                 }
                 else {
                     // This is an issue comment (消去法)
                     core.info(`Deleting issue comment ${comment.id}: "${comment.body.substring(0, 50)}..."`);
-                    yield octokit.rest.issues.deleteComment({
-                        owner: github.context.repo.owner,
-                        repo: github.context.repo.repo,
-                        comment_id: comment.id
-                    });
+                    try {
+                        yield octokit.rest.issues.deleteComment({
+                            owner: github.context.repo.owner,
+                            repo: github.context.repo.repo,
+                            comment_id: comment.id
+                        });
+                    }
+                    catch (error) {
+                        // Check if it's a permission error
+                        if (error instanceof Error &&
+                            (error.message.includes('Resource not accessible by integration') ||
+                                error.message.includes('403'))) {
+                            core.info(`Permission denied for deleting comment ${comment.id}, falling back to minimizing`);
+                            yield minimizeComment(octokit, comment.node_id, 'OUTDATED');
+                        }
+                        else {
+                            throw error;
+                        }
+                    }
                 }
             }
         }

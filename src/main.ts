@@ -31,6 +31,7 @@ type ReviewComment = {
     login: string
   } | null
   in_reply_to_id?: number | null
+  node_id: string
 }
 
 type IssueComment = {
@@ -39,6 +40,7 @@ type IssueComment = {
   user: {
     login: string
   } | null
+  node_id: string
 }
 
 type ReviewOverallComment = {
@@ -167,7 +169,8 @@ async function run(): Promise<void> {
       issueComments = issueCommentsResponse.data.map(comment => ({
         id: comment.id,
         body: comment.body || '',
-        user: comment.user
+        user: comment.user,
+        node_id: comment.node_id
       }))
     }
 
@@ -206,7 +209,8 @@ async function run(): Promise<void> {
         id: comment.id,
         body: comment.body,
         user: comment.user,
-        in_reply_to_id: comment.in_reply_to_id
+        in_reply_to_id: comment.in_reply_to_id,
+        node_id: comment.node_id
       })
     )
     const allComments: Comment[] = [
@@ -248,21 +252,53 @@ async function run(): Promise<void> {
         core.info(
           `Deleting review comment ${comment.id}: "${comment.body.substring(0, 50)}..."`
         )
-        await octokit.rest.pulls.deleteReviewComment({
-          owner: github.context.repo.owner,
-          repo: github.context.repo.repo,
-          comment_id: comment.id
-        })
+        try {
+          await octokit.rest.pulls.deleteReviewComment({
+            owner: github.context.repo.owner,
+            repo: github.context.repo.repo,
+            comment_id: comment.id
+          })
+        } catch (error) {
+          // Check if it's a permission error
+          if (
+            error instanceof Error &&
+            (error.message.includes('Resource not accessible by integration') ||
+              error.message.includes('403'))
+          ) {
+            core.info(
+              `Permission denied for deleting comment ${comment.id}, falling back to minimizing`
+            )
+            await minimizeComment(octokit, comment.node_id, 'OUTDATED')
+          } else {
+            throw error
+          }
+        }
       } else {
         // This is an issue comment (消去法)
         core.info(
           `Deleting issue comment ${comment.id}: "${comment.body.substring(0, 50)}..."`
         )
-        await octokit.rest.issues.deleteComment({
-          owner: github.context.repo.owner,
-          repo: github.context.repo.repo,
-          comment_id: comment.id
-        })
+        try {
+          await octokit.rest.issues.deleteComment({
+            owner: github.context.repo.owner,
+            repo: github.context.repo.repo,
+            comment_id: comment.id
+          })
+        } catch (error) {
+          // Check if it's a permission error
+          if (
+            error instanceof Error &&
+            (error.message.includes('Resource not accessible by integration') ||
+              error.message.includes('403'))
+          ) {
+            core.info(
+              `Permission denied for deleting comment ${comment.id}, falling back to minimizing`
+            )
+            await minimizeComment(octokit, comment.node_id, 'OUTDATED')
+          } else {
+            throw error
+          }
+        }
       }
     }
   } catch (error) {
