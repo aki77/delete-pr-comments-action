@@ -12,6 +12,17 @@ const parseBodyContains = (bodyContains: string): readonly string[] => {
     .filter(line => line.length > 0)
 }
 
+const parseUsernames = (usernames: string): readonly string[] => {
+  if (usernames.length === 0) {
+    return []
+  }
+
+  return usernames
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0)
+}
+
 async function run(): Promise<void> {
   try {
     const pullNumberFromInputs = core.getInput('pullRequestNumber')
@@ -28,8 +39,10 @@ async function run(): Promise<void> {
 
     const token = core.getInput('token', {required: true})
     const searchStrings = parseBodyContains(core.getInput('bodyContains'))
+    const targetUsernames = parseUsernames(core.getInput('usernames'))
     const noReply = core.getInput('noReply')
     core.debug(`bodyContains: ${JSON.stringify(searchStrings)}`)
+    core.debug(`usernames: ${JSON.stringify(targetUsernames)}`)
     core.debug(`pull_number: ${pullNumber}`)
 
     const octokit = github.getOctokit(token)
@@ -56,6 +69,10 @@ async function run(): Promise<void> {
           (searchString: string) => !comment.body.includes(searchString)
         )
       ) {
+        return false
+      }
+
+      if (targetUsernames.length > 0 && !targetUsernames.includes(comment.user.login)) {
         return false
       }
 

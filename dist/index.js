@@ -60,6 +60,15 @@ const parseBodyContains = (bodyContains) => {
         .map(line => line.trim())
         .filter(line => line.length > 0);
 };
+const parseUsernames = (usernames) => {
+    if (usernames.length === 0) {
+        return [];
+    }
+    return usernames
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
+};
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -73,8 +82,10 @@ function run() {
             }
             const token = core.getInput('token', { required: true });
             const searchStrings = parseBodyContains(core.getInput('bodyContains'));
+            const targetUsernames = parseUsernames(core.getInput('usernames'));
             const noReply = core.getInput('noReply');
             core.debug(`bodyContains: ${JSON.stringify(searchStrings)}`);
+            core.debug(`usernames: ${JSON.stringify(targetUsernames)}`);
             core.debug(`pull_number: ${pullNumber}`);
             const octokit = github.getOctokit(token);
             const response = yield octokit.rest.pulls.listReviewComments({
@@ -93,6 +104,9 @@ function run() {
             const commentIdsWithReplySet = new Set(commentIdsWithReply);
             const comments = response.data.filter(comment => {
                 if (searchStrings.every((searchString) => !comment.body.includes(searchString))) {
+                    return false;
+                }
+                if (targetUsernames.length > 0 && !targetUsernames.includes(comment.user.login)) {
                     return false;
                 }
                 if (noReply === 'true' && commentIdsWithReplySet.has(comment.id)) {

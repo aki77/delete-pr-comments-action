@@ -19,6 +19,9 @@ inputs:
   pullRequestNumber:
     required: false
     description: "Delete comments on specified PR"
+  usernames:
+    required: false
+    description: "Delete only comments posted by specified usernames (newline separated)"
 runs:
   using: "node20"
   main: "dist/index.js"
