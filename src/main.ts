@@ -1,8 +1,13 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
 
-const minimizeComment = async (octokit: ReturnType<typeof github.getOctokit>, nodeId: string, reason: string = 'OUTDATED'): Promise<void> => {
-  await octokit.graphql(`
+const minimizeComment = async (
+  octokit: ReturnType<typeof github.getOctokit>,
+  nodeId: string,
+  reason: string = 'OUTDATED'
+): Promise<void> => {
+  await octokit.graphql(
+    `
     mutation minimizeComment($id: ID!, $classifier: ReportedContentClassifiers!) {
       minimizeComment(input: { subjectId: $id, classifier: $classifier }) {
         minimizedComment {
@@ -11,10 +16,12 @@ const minimizeComment = async (octokit: ReturnType<typeof github.getOctokit>, no
         }
       }
     }
-  `, {
-    id: nodeId,
-    classifier: reason
-  })
+  `,
+    {
+      id: nodeId,
+      classifier: reason
+    }
+  )
 }
 
 type ReviewComment = {
@@ -127,7 +134,9 @@ async function run(): Promise<void> {
     const targetUsernames = parseUsernames(core.getInput('usernames'))
     const noReply = core.getInput('noReply')
     const includeIssueComments = core.getInput('includeIssueComments')
-    const includeOverallReviewComments = core.getInput('includeOverallReviewComments')
+    const includeOverallReviewComments = core.getInput(
+      'includeOverallReviewComments'
+    )
     core.debug(`bodyContains: ${JSON.stringify(searchStrings)}`)
     core.debug(`usernames: ${JSON.stringify(targetUsernames)}`)
     core.debug(`pull_number: ${pullNumber}`)
@@ -171,16 +180,22 @@ async function run(): Promise<void> {
         pull_number: pullNumber,
         per_page: 100
       })
-      
+
       overallReviewComments = reviewsResponse.data
         .filter(review => review.body && review.body.trim().length > 0)
         .map(review => ({
           id: review.id,
           body: review.body || '',
-          user: review.user ? {
-            login: review.user.login
-          } : null,
-          state: review.state as 'PENDING' | 'COMMENTED' | 'APPROVED' | 'CHANGES_REQUESTED',
+          user: review.user
+            ? {
+                login: review.user.login
+              }
+            : null,
+          state: review.state as
+            | 'PENDING'
+            | 'COMMENTED'
+            | 'APPROVED'
+            | 'CHANGES_REQUESTED',
           submitted_at: review.submitted_at || null,
           node_id: review.node_id
         }))
@@ -194,7 +209,11 @@ async function run(): Promise<void> {
         in_reply_to_id: comment.in_reply_to_id
       })
     )
-    const allComments: Comment[] = [...allReviewComments, ...issueComments, ...overallReviewComments]
+    const allComments: Comment[] = [
+      ...allReviewComments,
+      ...issueComments,
+      ...overallReviewComments
+    ]
 
     core.debug(`Review comment count: ${allReviewComments.length}`)
     core.debug(`Issue comment count: ${issueComments.length}`)
@@ -220,11 +239,15 @@ async function run(): Promise<void> {
     for (const comment of filteredComments) {
       if ('state' in comment) {
         // This is an overall review comment → Always hide
-        core.info(`Hiding review ${comment.id}: "${comment.body.substring(0, 50)}..."`)
+        core.info(
+          `Hiding review ${comment.id}: "${comment.body.substring(0, 50)}..."`
+        )
         await minimizeComment(octokit, comment.node_id, 'OUTDATED')
       } else if ('in_reply_to_id' in comment) {
         // This is a review comment (line-specific)
-        core.info(`Deleting review comment ${comment.id}: "${comment.body.substring(0, 50)}..."`)
+        core.info(
+          `Deleting review comment ${comment.id}: "${comment.body.substring(0, 50)}..."`
+        )
         await octokit.rest.pulls.deleteReviewComment({
           owner: github.context.repo.owner,
           repo: github.context.repo.repo,
@@ -232,7 +255,9 @@ async function run(): Promise<void> {
         })
       } else {
         // This is an issue comment (消去法)
-        core.info(`Deleting issue comment ${comment.id}: "${comment.body.substring(0, 50)}..."`)
+        core.info(
+          `Deleting issue comment ${comment.id}: "${comment.body.substring(0, 50)}..."`
+        )
         await octokit.rest.issues.deleteComment({
           owner: github.context.repo.owner,
           repo: github.context.repo.repo,
