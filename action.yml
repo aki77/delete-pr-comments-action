@@ -19,6 +19,17 @@ inputs:
   pullRequestNumber:
     required: false
     description: "Delete comments on specified PR"
+  usernames:
+    required: false
+    description: "Delete only comments posted by specified usernames (newline separated)"
+  includeIssueComments:
+    required: false
+    description: "Include PR issue comments in deletion targets"
+    default: "false"
+  includeOverallReviewComments:
+    required: false
+    description: "Include overall review comments in deletion targets (will be hidden)"
+    default: "false"
 runs:
   using: "node20"
   main: "dist/index.js"

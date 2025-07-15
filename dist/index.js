@@ -51,6 +51,21 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(9999));
 const github = __importStar(__nccwpck_require__(5380));
+const minimizeComment = (octokit_1, nodeId_1, ...args_1) => __awaiter(void 0, [octokit_1, nodeId_1, ...args_1], void 0, function* (octokit, nodeId, reason = 'OUTDATED') {
+    yield octokit.graphql(`
+    mutation minimizeComment($id: ID!, $classifier: ReportedContentClassifiers!) {
+      minimizeComment(input: { subjectId: $id, classifier: $classifier }) {
+        minimizedComment {
+          isMinimized
+          minimizedReason
+        }
+      }
+    }
+  `, {
+        id: nodeId,
+        classifier: reason
+    });
+});
 const parseBodyContains = (bodyContains) => {
     if (bodyContains.length === 0) {
         return [];
@@ -59,6 +74,36 @@ const parseBodyContains = (bodyContains) => {
         .split('\n')
         .map(line => line.trim())
         .filter(line => line.length > 0);
+};
+const parseUsernames = (usernames) => {
+    if (usernames.length === 0) {
+        return [];
+    }
+    return usernames
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
+};
+const filterComments = (comments, searchStrings, targetUsernames, noReply, commentIdsWithReplySet) => {
+    return comments.filter(comment => {
+        // Filter by search strings
+        if (searchStrings.length > 0 &&
+            searchStrings.every((searchString) => !comment.body.includes(searchString))) {
+            return false;
+        }
+        // Filter by usernames
+        if (targetUsernames.length > 0 &&
+            (!comment.user || !targetUsernames.includes(comment.user.login))) {
+            return false;
+        }
+        // noReply filter only applies to review comments (line-specific comments)
+        if (noReply === 'true' &&
+            'in_reply_to_id' in comment &&
+            commentIdsWithReplySet.has(comment.id)) {
+            return false;
+        }
+        return true;
+    });
 };
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
@@ -73,11 +118,16 @@ function run() {
             }
             const token = core.getInput('token', { required: true });
             const searchStrings = parseBodyContains(core.getInput('bodyContains'));
+            const targetUsernames = parseUsernames(core.getInput('usernames'));
             const noReply = core.getInput('noReply');
+            const includeIssueComments = core.getInput('includeIssueComments');
+            const includeOverallReviewComments = core.getInput('includeOverallReviewComments');
             core.debug(`bodyContains: ${JSON.stringify(searchStrings)}`);
+            core.debug(`usernames: ${JSON.stringify(targetUsernames)}`);
             core.debug(`pull_number: ${pullNumber}`);
             const octokit = github.getOctokit(token);
-            const response = yield octokit.rest.pulls.listReviewComments({
+            // Get PR review comments (line-specific comments)
+            const reviewCommentsResponse = yield octokit.rest.pulls.listReviewComments({
                 owner: github.context.repo.owner,
                 repo: github.context.repo.repo,
                 pull_number: pullNumber,
@@ -85,28 +135,86 @@ function run() {
                 sort: 'created',
                 direction: 'desc'
             });
-            core.debug(`Comment count: ${response.data.length}`);
-            core.debug(`Comments: ${JSON.stringify(response.data)}`);
-            const commentIdsWithReply = response.data
+            // Get PR issue comments (including overall review comments)
+            let issueComments = [];
+            if (includeIssueComments === 'true') {
+                const issueCommentsResponse = yield octokit.rest.issues.listComments({
+                    owner: github.context.repo.owner,
+                    repo: github.context.repo.repo,
+                    issue_number: pullNumber,
+                    per_page: 100,
+                    sort: 'created',
+                    direction: 'desc'
+                });
+                issueComments = issueCommentsResponse.data.map(comment => ({
+                    id: comment.id,
+                    body: comment.body || '',
+                    user: comment.user
+                }));
+            }
+            // Get overall review comments
+            let overallReviewComments = [];
+            if (includeOverallReviewComments === 'true') {
+                const reviewsResponse = yield octokit.rest.pulls.listReviews({
+                    owner: github.context.repo.owner,
+                    repo: github.context.repo.repo,
+                    pull_number: pullNumber,
+                    per_page: 100
+                });
+                overallReviewComments = reviewsResponse.data
+                    .filter(review => review.body && review.body.trim().length > 0)
+                    .map(review => ({
+                    id: review.id,
+                    body: review.body || '',
+                    user: review.user ? {
+                        login: review.user.login
+                    } : null,
+                    state: review.state,
+                    submitted_at: review.submitted_at || null,
+                    node_id: review.node_id
+                }));
+            }
+            const allReviewComments = reviewCommentsResponse.data.map(comment => ({
+                id: comment.id,
+                body: comment.body,
+                user: comment.user,
+                in_reply_to_id: comment.in_reply_to_id
+            }));
+            const allComments = [...allReviewComments, ...issueComments, ...overallReviewComments];
+            core.debug(`Review comment count: ${allReviewComments.length}`);
+            core.debug(`Issue comment count: ${issueComments.length}`);
+            core.debug(`Overall review comment count: ${overallReviewComments.length}`);
+            core.debug(`Total comment count: ${allComments.length}`);
+            const commentIdsWithReply = allReviewComments
                 .map(({ in_reply_to_id }) => in_reply_to_id)
                 .filter((id) => !!id);
             const commentIdsWithReplySet = new Set(commentIdsWithReply);
-            const comments = response.data.filter(comment => {
-                if (searchStrings.every((searchString) => !comment.body.includes(searchString))) {
-                    return false;
+            const filteredComments = filterComments(allComments, searchStrings, targetUsernames, noReply, commentIdsWithReplySet);
+            core.debug(`Found ${filteredComments.length} comments with match conditions.`);
+            for (const comment of filteredComments) {
+                if ('state' in comment) {
+                    // This is an overall review comment → Always hide
+                    core.info(`Hiding review ${comment.id}: "${comment.body.substring(0, 50)}..."`);
+                    yield minimizeComment(octokit, comment.node_id, 'OUTDATED');
                 }
-                if (noReply === 'true' && commentIdsWithReplySet.has(comment.id)) {
-                    return false;
+                else if ('in_reply_to_id' in comment) {
+                    // This is a review comment (line-specific)
+                    core.info(`Deleting review comment ${comment.id}: "${comment.body.substring(0, 50)}..."`);
+                    yield octokit.rest.pulls.deleteReviewComment({
+                        owner: github.context.repo.owner,
+                        repo: github.context.repo.repo,
+                        comment_id: comment.id
+                    });
                 }
-                return true;
-            });
-            core.debug(`Found ${comments.length} comments with match conditions.`);
-            for (const comment of comments) {
-                yield octokit.rest.pulls.deleteReviewComment({
-                    owner: github.context.repo.owner,
-                    repo: github.context.repo.repo,
-                    comment_id: comment.id
-                });
+                else {
+                    // This is an issue comment (消去法)
+                    core.info(`Deleting issue comment ${comment.id}: "${comment.body.substring(0, 50)}..."`);
+                    yield octokit.rest.issues.deleteComment({
+                        owner: github.context.repo.owner,
+                        repo: github.context.repo.repo,
+                        comment_id: comment.id
+                    });
+                }
             }
         }
         catch (error) {
