@@ -24,6 +24,86 @@ const minimizeComment = async (
   )
 }
 
+const getMinimizedComments = async (
+  octokit: ReturnType<typeof github.getOctokit>,
+  owner: string,
+  repo: string,
+  pullNumber: number
+): Promise<Set<string>> => {
+  const query = `
+    query($owner: String!, $repo: String!, $number: Int!) {
+      repository(owner: $owner, name: $repo) {
+        pullRequest(number: $number) {
+          reviews(first: 100) {
+            nodes {
+              databaseId
+              isMinimized
+            }
+          }
+          reviewThreads(first: 100) {
+            nodes {
+              comments(first: 100) {
+                nodes {
+                  databaseId
+                  isMinimized
+                }
+              }
+            }
+          }
+          comments(first: 100) {
+            nodes {
+              databaseId
+              isMinimized
+            }
+          }
+        }
+      }
+    }
+  `
+
+  // biome-ignore lint/suspicious/noExplicitAny: GitHub GraphQL response is dynamic
+  const response: any = await octokit.graphql(query, {
+    owner,
+    repo,
+    number: pullNumber
+  })
+
+  const minimizedIds = new Set<string>()
+
+  // Overall review comments
+  if (response.repository?.pullRequest?.reviews?.nodes) {
+    for (const review of response.repository.pullRequest.reviews.nodes) {
+      if (review?.isMinimized) {
+        minimizedIds.add(String(review.databaseId))
+      }
+    }
+  }
+
+  // Review thread comments (line-specific)
+  if (response.repository?.pullRequest?.reviewThreads?.nodes) {
+    for (const thread of response.repository.pullRequest.reviewThreads.nodes) {
+      if (thread?.comments?.nodes) {
+        for (const comment of thread.comments.nodes) {
+          if (comment?.isMinimized) {
+            minimizedIds.add(String(comment.databaseId))
+          }
+        }
+      }
+    }
+  }
+
+  // Issue comments
+  if (response.repository?.pullRequest?.comments?.nodes) {
+    for (const comment of response.repository.pullRequest.comments.nodes) {
+      if (comment?.isMinimized) {
+        minimizedIds.add(String(comment.databaseId))
+      }
+    }
+  }
+
+  return minimizedIds
+}
+
 type ReviewComment = {
   id: number
   body: string
@@ -137,11 +217,25 @@ async function run(): Promise<void> {
     const includeOverallReviewComments = core.getInput(
       'includeOverallReviewComments'
     )
+    const onlyNotMinimized = core.getInput('onlyNotMinimized')
     core.debug(`bodyContains: ${JSON.stringify(searchStrings)}`)
     core.debug(`usernames: ${JSON.stringify(targetUsernames)}`)
     core.debug(`pull_number: ${pullNumber}`)
+    core.debug(`onlyNotMinimized: ${onlyNotMinimized}`)
 
     const octokit = github.getOctokit(token)
+
+    // Get minimized comment IDs if onlyNotMinimized is enabled
+    let minimizedCommentIds: Set<string> = new Set()
+    if (onlyNotMinimized === 'true') {
+      minimizedCommentIds = await getMinimizedComments(
+        octokit,
+        github.context.repo.owner,
+        github.context.repo.repo,
+        pullNumber
+      )
+      core.debug(`Found ${minimizedCommentIds.size} minimized comments`)
+    }
 
     // Get PR review comments (line-specific comments)
     const reviewCommentsResponse = await octokit.rest.pulls.listReviewComments({
@@ -225,13 +319,24 @@ async function run(): Promise<void> {
       .filter((id): id is number => !!id)
     const commentIdsWithReplySet = new Set(commentIdsWithReply)
 
-    const filteredComments = filterComments(
+    let filteredComments = filterComments(
       allComments,
       searchStrings,
       targetUsernames,
       noReply,
       commentIdsWithReplySet
     )
+
+    // Filter out minimized comments if onlyNotMinimized is enabled
+    if (onlyNotMinimized === 'true') {
+      filteredComments = filteredComments.filter(
+        comment => !minimizedCommentIds.has(String(comment.id))
+      )
+      core.debug(
+        `After filtering minimized comments: ${filteredComments.length} comments remain`
+      )
+    }
+
     core.debug(
       `Found ${filteredComments.length} comments with match conditions.`
     )
