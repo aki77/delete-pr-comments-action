@@ -30,6 +30,10 @@ inputs:
     required: false
     description: "Include overall review comments in deletion targets (will be hidden)"
     default: "false"
+  onlyNotMinimized:
+    required: false
+    description: "Delete only comments that are not minimized (hidden)"
+    default: "false"
 runs:
   using: "node20"
   main: "dist/index.js"

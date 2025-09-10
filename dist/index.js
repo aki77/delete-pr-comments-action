@@ -66,6 +66,75 @@ const minimizeComment = (octokit_1, nodeId_1, ...args_1) => __awaiter(void 0, [o
         classifier: reason
     });
 });
+const getMinimizedComments = (octokit, owner, repo, pullNumber) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
+    const query = `
+    query($owner: String!, $repo: String!, $number: Int!) {
+      repository(owner: $owner, name: $repo) {
+        pullRequest(number: $number) {
+          reviews(first: 100) {
+            nodes {
+              databaseId
+              isMinimized
+            }
+          }
+          reviewThreads(first: 100) {
+            nodes {
+              comments(first: 100) {
+                nodes {
+                  databaseId
+                  isMinimized
+                }
+              }
+            }
+          }
+          comments(first: 100) {
+            nodes {
+              databaseId
+              isMinimized
+            }
+          }
+        }
+      }
+    }
+  `;
+    // biome-ignore lint/suspicious/noExplicitAny: GitHub GraphQL response is dynamic
+    const response = yield octokit.graphql(query, {
+        owner,
+        repo,
+        number: pullNumber
+    });
+    const minimizedIds = new Set();
+    // Overall review comments
+    if ((_c = (_b = (_a = response.repository) === null || _a === void 0 ? void 0 : _a.pullRequest) === null || _b === void 0 ? void 0 : _b.reviews) === null || _c === void 0 ? void 0 : _c.nodes) {
+        for (const review of response.repository.pullRequest.reviews.nodes) {
+            if (review === null || review === void 0 ? void 0 : review.isMinimized) {
+                minimizedIds.add(String(review.databaseId));
+            }
+        }
+    }
+    // Review thread comments (line-specific)
+    if ((_f = (_e = (_d = response.repository) === null || _d === void 0 ? void 0 : _d.pullRequest) === null || _e === void 0 ? void 0 : _e.reviewThreads) === null || _f === void 0 ? void 0 : _f.nodes) {
+        for (const thread of response.repository.pullRequest.reviewThreads.nodes) {
+            if ((_g = thread === null || thread === void 0 ? void 0 : thread.comments) === null || _g === void 0 ? void 0 : _g.nodes) {
+                for (const comment of thread.comments.nodes) {
+                    if (comment === null || comment === void 0 ? void 0 : comment.isMinimized) {
+                        minimizedIds.add(String(comment.databaseId));
+                    }
+                }
+            }
+        }
+    }
+    // Issue comments
+    if ((_k = (_j = (_h = response.repository) === null || _h === void 0 ? void 0 : _h.pullRequest) === null || _j === void 0 ? void 0 : _j.comments) === null || _k === void 0 ? void 0 : _k.nodes) {
+        for (const comment of response.repository.pullRequest.comments.nodes) {
+            if (comment === null || comment === void 0 ? void 0 : comment.isMinimized) {
+                minimizedIds.add(String(comment.databaseId));
+            }
+        }
+    }
+    return minimizedIds;
+});
 const parseBodyContains = (bodyContains) => {
     if (bodyContains.length === 0) {
         return [];
@@ -122,10 +191,18 @@ function run() {
             const noReply = core.getInput('noReply');
             const includeIssueComments = core.getInput('includeIssueComments');
             const includeOverallReviewComments = core.getInput('includeOverallReviewComments');
+            const onlyNotMinimized = core.getInput('onlyNotMinimized');
             core.debug(`bodyContains: ${JSON.stringify(searchStrings)}`);
             core.debug(`usernames: ${JSON.stringify(targetUsernames)}`);
             core.debug(`pull_number: ${pullNumber}`);
+            core.debug(`onlyNotMinimized: ${onlyNotMinimized}`);
             const octokit = github.getOctokit(token);
+            // Get minimized comment IDs if onlyNotMinimized is enabled
+            let minimizedCommentIds = new Set();
+            if (onlyNotMinimized === 'true') {
+                minimizedCommentIds = yield getMinimizedComments(octokit, github.context.repo.owner, github.context.repo.repo, pullNumber);
+                core.debug(`Found ${minimizedCommentIds.size} minimized comments`);
+            }
             // Get PR review comments (line-specific comments)
             const reviewCommentsResponse = yield octokit.rest.pulls.listReviewComments({
                 owner: github.context.repo.owner,
@@ -166,9 +243,11 @@ function run() {
                     .map(review => ({
                     id: review.id,
                     body: review.body || '',
-                    user: review.user ? {
-                        login: review.user.login
-                    } : null,
+                    user: review.user
+                        ? {
+                            login: review.user.login
+                        }
+                        : null,
                     state: review.state,
                     submitted_at: review.submitted_at || null,
                     node_id: review.node_id
@@ -180,7 +259,11 @@ function run() {
                 user: comment.user,
                 in_reply_to_id: comment.in_reply_to_id
             }));
-            const allComments = [...allReviewComments, ...issueComments, ...overallReviewComments];
+            const allComments = [
+                ...allReviewComments,
+                ...issueComments,
+                ...overallReviewComments
+            ];
             core.debug(`Review comment count: ${allReviewComments.length}`);
             core.debug(`Issue comment count: ${issueComments.length}`);
             core.debug(`Overall review comment count: ${overallReviewComments.length}`);
@@ -189,7 +272,12 @@ function run() {
                 .map(({ in_reply_to_id }) => in_reply_to_id)
                 .filter((id) => !!id);
             const commentIdsWithReplySet = new Set(commentIdsWithReply);
-            const filteredComments = filterComments(allComments, searchStrings, targetUsernames, noReply, commentIdsWithReplySet);
+            let filteredComments = filterComments(allComments, searchStrings, targetUsernames, noReply, commentIdsWithReplySet);
+            // Filter out minimized comments if onlyNotMinimized is enabled
+            if (onlyNotMinimized === 'true') {
+                filteredComments = filteredComments.filter(comment => !minimizedCommentIds.has(String(comment.id)));
+                core.debug(`After filtering minimized comments: ${filteredComments.length} comments remain`);
+            }
             core.debug(`Found ${filteredComments.length} comments with match conditions.`);
             for (const comment of filteredComments) {
                 if ('state' in comment) {

@@ -15,6 +15,7 @@ See [action.yml](action.yml)
 | `usernames` | Delete only comments posted by specified usernames (newline separated) | `` | no |
 | `includeIssueComments` | Include PR issue comments in deletion targets | false | no |
 | `includeOverallReviewComments` | Include overall review comments in deletion targets (will be hidden) | false | no |
+| `onlyNotMinimized` | Delete only comments that are not minimized (hidden) | false | no |
 
   You can specify multiple strings by putting each string on its own line:
 
@@ -102,4 +103,20 @@ jobs:
           includeIssueComments: 'true'
           includeOverallReviewComments: 'true'
           usernames: claude[bot]
+```
+
+### Delete only non-minimized comments
+
+```yaml
+name: Delete visible comments only
+on:
+  pull_request:
+
+jobs:
+  cleanup:
+    steps:
+      - uses: aki77/delete-pr-comments-action@v3
+        with:
+          bodyContains: 'outdated'
+          onlyNotMinimized: 'true'
 ```
