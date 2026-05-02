@@ -33,7 +33,7 @@
     "@types/node": "^20.19.37",
     "@vercel/ncc": "^0.38.4",
     "js-yaml": "^4.1.1",
-    "typescript": "^6.0.2"
+    "typescript": "^6.0.3"
   },
   "packageManager": "pnpm@9.4.0"
 }
