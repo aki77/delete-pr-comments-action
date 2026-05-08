@@ -199,7 +199,7 @@ async function run(): Promise<void> {
   try {
     const pullNumberFromInputs = core.getInput('pullRequestNumber')
     const pullNumber = pullNumberFromInputs
-      ? Number.parseInt(pullNumberFromInputs)
+      ? Number.parseInt(pullNumberFromInputs, 10)
       : github.context.issue.number
 
     if (!pullNumber) {
