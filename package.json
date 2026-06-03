@@ -39,7 +39,7 @@
     "@types/node": "^24.12.3",
     "js-yaml": "^4.1.1",
     "rimraf": "^6.0.0",
-    "rollup": "^4.0.0",
+    "rollup": "^4.61.0",
     "tslib": "^2.8.1",
     "typescript": "^6.0.3"
   },
