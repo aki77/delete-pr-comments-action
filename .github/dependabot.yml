@@ -4,11 +4,30 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    cooldown:
+      default-days: 2
+    groups:
+      # Actions are numerous and generate noisy PRs, so bundle them into one.
+      # All actions are SHA-pinned, so minor/patch updates are meaningful too.
+      github-actions:
+        patterns:
+          - "*"
 
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: monthly
+    cooldown:
+      default-days: 2
+    groups:
+      # Bundle minor/patch into one PR to cut review overhead (major stays separate).
+      npm-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
     ignore:
+      # @types/node is pinned to the Node runtime major (see mise.toml: node 24).
+      # No need for v25+ types until the runtime itself is upgraded.
       - dependency-name: "@types/node"
-        update-types: ["version-update:semver-major"]
+        update-types:
+          - "version-update:semver-major"
